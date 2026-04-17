@@ -11,8 +11,8 @@ public class AccountNumber {
     }
 
     public String generateUniqueAccountNumber() {
-        long min = 100000000L;
-        long max = 900000000L;
+        long min = 100000000;
+        long max = 900000000;
 
         String accountNumber;
         do {

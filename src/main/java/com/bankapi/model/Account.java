@@ -4,11 +4,13 @@ import java.math.BigDecimal;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,8 +33,10 @@ public class Account {
     @Column(name = "user_name", nullable = false)
     private String userName;
 
-    @Column(name = "account_type")
-    private String accountType;
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_type", nullable=false)
+    private AccountType accountType;
 
     @Column(name = "balance", precision = 10, scale = 2, nullable = false)
     private BigDecimal balance;
@@ -41,19 +45,19 @@ public class Account {
     private String status;
 
 
-    @PrePersist
-    public void generateAccountNumber() {
-        if (this.accountNumber == null || this.accountNumber.isEmpty()) {
-            this.accountNumber = generateUniqueAccountNumber();
-        }
-    }
+    // @PrePersist
+    // public void generateAccountNumber() {
+    //     if (this.accountNumber == null || this.accountNumber.isEmpty()) {
+    //         this.accountNumber = generateUniqueAccountNumber();
+    //     }
+    // }
 
-    private String generateUniqueAccountNumber() {
-        long min = 100000000L; // 9-digit minimum
-        long max = 999999999L; // 9-digit maximum
+    // private String generateUniqueAccountNumber() {
+    //     long min = 100000000L; // 9-digit minimum
+    //     long max = 999999999L; // 9-digit maximum
 
-        long randomNum = min + (long) (Math.random() * (max - min + 1));
-        return String.valueOf(randomNum);
-    }
+    //     long randomNum = min + (long) (Math.random() * (max - min + 1));
+    //     return String.valueOf(randomNum);
+    // }
     
 }

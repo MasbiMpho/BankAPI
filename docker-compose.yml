@@ -1,9 +1,162 @@
+# services:
+
+#   # ─────────────────────────────────────────
+#   # Database & Application
+#   # ─────────────────────────────────────────
+
+#   db:
+#     image: postgres:${POSTGRES_VERSION}
+#     container_name: bankapi_db
+#     environment:
+#       POSTGRES_DB: ${POSTGRES_DB}
+#       POSTGRES_USER: ${POSTGRES_USER}
+#       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#       POSTGRES_HOST_AUTH_METHOD: trust
+#     ports:
+#       - "${POSTGRES_PORT}:5432"
+#     volumes:
+#       - db_data:/var/lib/postgresql/data
+#       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+#       interval: 5s
+#       timeout: 5s
+#       retries: 5
+#     networks:
+#       - app-net
+
+#   app:
+#     build: .
+#     image: bankapi:latest
+#     container_name: bankapi_app
+#     env_file:
+#       - .env
+#     environment:
+#       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+#       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+#       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+#     ports:
+#       - "${APP_PORT}:8080"
+#     depends_on:
+#       db:
+#         condition: service_healthy
+#     restart: on-failure
+#     networks:
+#       - app-net
+#     labels:
+#       filebeat.enable: "true"
+#       filebeat.app: "bankapi"
+#     logging:
+#       driver: "json-file"
+#       options:
+#         max-size: "10m"
+#         max-file: "3"
+
+#   # ─────────────────────────────────────────
+#   # GrayLog
+#   # ─────────────────────────────────────────
+
+#   mongo:
+#     image: mongo:6.0
+#     container_name: bankapi_mongo
+#     volumes:
+#       - mongo_data:/data/db
+#     networks:
+#       - app-net
+#     restart: unless-stopped
+#     healthcheck:
+#       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+
+#   opensearch:
+#     image: opensearchproject/opensearch:2.11.0
+#     container_name: bankapi_opensearch
+#     environment:
+#       - discovery.type=single-node
+#       - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+#       - DISABLE_SECURITY_PLUGIN=true
+#       - DISABLE_INSTALL_DEMO_CONFIG=true
+#     ulimits:
+#       memlock:
+#         soft: -1
+#         hard: -1
+#       nofile:
+#         soft: 65536
+#         hard: 65536
+#     volumes:
+#       - opensearch_data:/usr/share/opensearch/data
+#     networks:
+#       - app-net
+#     restart: unless-stopped
+#     healthcheck:
+#       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+#       interval: 15s
+#       timeout: 10s
+#       retries: 10
+
+#   graylog:
+#     image: graylog/graylog:5.2
+#     container_name: bankapi_graylog
+#     environment:
+#       - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
+#       - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
+#       - GRAYLOG_HTTP_EXTERNAL_URI=http://localhost:9000/
+#       - GRAYLOG_ELASTICSEARCH_HOSTS=http://opensearch:9200
+#       - GRAYLOG_MONGODB_URI=mongodb://mongo:27017/graylog
+#     ports:
+#       - "9000:9000"         
+#       - "5044:5044"        
+#       - "12201:12201/udp"   
+#     depends_on:
+#       mongo:
+#         condition: service_healthy
+#       opensearch:
+#         condition: service_healthy
+#     networks:
+#       - app-net
+#     restart: unless-stopped
+#     healthcheck:
+#       test: ["CMD-SHELL", "curl -s http://localhost:9000/api/system/lbstatus | grep -q ALIVE"]
+#       interval: 15s
+#       timeout: 10s
+#       retries: 10
+
+#   filebeat:
+#     image: docker.elastic.co/beats/filebeat:8.12.0
+#     container_name: bankapi_filebeat
+#     user: root
+#     volumes:
+#       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+#       - /var/lib/docker/containers:/var/lib/docker/containers:ro
+#       - /var/run/docker.sock:/var/run/docker.sock:ro
+#       - filebeat_data:/usr/share/filebeat/data
+#     depends_on:
+#       graylog:
+#         condition: service_healthy
+#     networks:
+#       - app-net
+#     restart: unless-stopped
+#     command: filebeat -e --strict.perms=false
+
+
+# volumes:
+#   db_data:
+#   mongo_data:
+#   opensearch_data:
+#   filebeat_data:
+
+# networks:
+#   app-net:
+#     driver: bridge
+
+version: "3.8"
 services:
 
   # ─────────────────────────────────────────
-  # Database & Application
+  # Database
   # ─────────────────────────────────────────
-
   db:
     image: postgres:${POSTGRES_VERSION}
     container_name: bankapi_db
@@ -25,6 +178,9 @@ services:
     networks:
       - app-net
 
+  # ─────────────────────────────────────────
+  # Application
+  # ─────────────────────────────────────────
   app:
     build: .
     image: bankapi:latest
@@ -37,25 +193,23 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "${APP_PORT}:8080"
+    volumes:
+      - bankapi-logs:/logs
     depends_on:
       db:
         condition: service_healthy
     restart: on-failure
     networks:
       - app-net
-    labels:
-      filebeat.enable: "true"       # Filebeat will collect logs from this container
-      filebeat.app: "bankapi"
-    logging:
-      driver: "json-file"           # Filebeat reads JSON log files from Docker
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   # ─────────────────────────────────────────
-  # GrayLog
+  #         ### Graylog Stack ###
   # ─────────────────────────────────────────
 
+
+  # ─────────────────────────────────────────
+  # MongoDB
+  # ─────────────────────────────────────────
   mongo:
     image: mongo:6.0
     container_name: bankapi_mongo
@@ -64,12 +218,10 @@ services:
     networks:
       - app-net
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
+  # ─────────────────────────────────────────
+  # Opensearch
+  # ─────────────────────────────────────────
   opensearch:
     image: opensearchproject/opensearch:2.11.0
     container_name: bankapi_opensearch
@@ -90,62 +242,57 @@ services:
     networks:
       - app-net
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
 
+  # ─────────────────────────────────────────
+  # Graylog
+  # ─────────────────────────────────────────
   graylog:
     image: graylog/graylog:5.2
     container_name: bankapi_graylog
     environment:
-      - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
-      - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
-      - GRAYLOG_HTTP_EXTERNAL_URI=http://localhost:9000/
-      - GRAYLOG_ELASTICSEARCH_HOSTS=http://opensearch:9200
-      - GRAYLOG_MONGODB_URI=mongodb://mongo:27017/graylog
+      GRAYLOG_PASSWORD_SECRET: ${GRAYLOG_PASSWORD_SECRET}
+      GRAYLOG_ROOT_PASSWORD_SHA2: ${GRAYLOG_ROOT_PASSWORD_SHA2}
+      GRAYLOG_HTTP_EXTERNAL_URI: http://localhost:9000/
+      GRAYLOG_ELASTICSEARCH_HOSTS: http://opensearch:9200
+      GRAYLOG_MONGODB_URI: mongodb://mongo:27017/graylog
     ports:
-      - "9000:9000"         
-      - "5044:5044"        
-      - "12201:12201/udp"   
+      - "9000:9000"
+      - "5044:5044"
+      - "12201:12201/udp"
     depends_on:
-      mongo:
-        condition: service_healthy
-      opensearch:
-        condition: service_healthy
+      - mongo
+      - opensearch
     networks:
       - app-net
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9000/api/system/lbstatus | grep -q ALIVE"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
 
+  # ─────────────────────────────────────────
+  # Filebeat
+  # ─────────────────────────────────────────
   filebeat:
-    image: docker.elastic.co/beats/filebeat:8.12.0
+    image: docker.elastic.co/beats/filebeat:8.13.4
     container_name: bankapi_filebeat
     user: root
     volumes:
+      - bankapi-logs:/logs:ro
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - filebeat_data:/usr/share/filebeat/data
     depends_on:
-      graylog:
-        condition: service_healthy
+      - graylog
     networks:
       - app-net
     restart: unless-stopped
-    command: filebeat -e --strict.perms=false
+    command: ["filebeat", "-e", "--strict.perms=false"]
 
-
+# ─────────────────────────────────────────
+# Volumes
+# ─────────────────────────────────────────
 volumes:
   db_data:
   mongo_data:
   opensearch_data:
   filebeat_data:
+  bankapi-logs:
 
 networks:
   app-net:

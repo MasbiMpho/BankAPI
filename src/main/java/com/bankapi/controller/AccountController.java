@@ -1,29 +1,28 @@
 package com.bankapi.controller;
 
-import com.bankapi.model.Account;
-import com.bankapi.repository.AccountRepository;
-import com.bankapi.service.AccountNumber;
-
-import java.util.List;
 import java.math.BigDecimal;
+import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bankapi.model.Account;
+import com.bankapi.model.AccountType;
+import com.bankapi.repository.AccountRepository;
+import com.bankapi.service.AccountNumber;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("")
@@ -32,6 +31,9 @@ public class AccountController {
 
     @Autowired
     private AccountRepository accountRepository;
+
+    private AccountNumber accountNumber;
+
 
     private static final Logger logger = LoggerFactory.getLogger(AccountController.class);
 
@@ -78,13 +80,13 @@ public class AccountController {
 
     @GetMapping("/account-number")
     @Operation(summary = "Get user by account number", description = "Fetch a user by their unique account number")
-    public ResponseEntity<String> getUserByAccountNumber(@RequestParam String accountNumber) {
+    public ResponseEntity<Account> getUserByAccountNumber(@RequestParam String accountNumber) {
         logger.info("Fetching user with account number: {}", accountNumber);
 
         return accountRepository.findByAccountNumber(accountNumber)
             .map(account -> {
                 logger.debug("User found: {}", account);
-                return ResponseEntity.ok(account.getAccountNumber());
+                return ResponseEntity.ok(account);
             })
             .orElseGet(() -> {
                 logger.warn("User with account number {} not found", accountNumber);
@@ -94,12 +96,15 @@ public class AccountController {
 
     @PostMapping("/create-account")
     @Operation(summary = "Create a new account", description = "Create a new account with the provided user name, account type, and initial deposit")
-    public ResponseEntity<Account> createAccount(@RequestParam String userName, @RequestParam String accountType, @RequestParam BigDecimal deposit) {
+    public ResponseEntity<Account> createAccount(@RequestParam String userName, @RequestParam String accountNumber, @RequestParam BigDecimal deposit) {
         logger.info("Creating account for user: {}", userName);
 
-        Account newAccount = new Account();
+        
+        Account newAccount = new Account();        
         newAccount.setUserName(userName);
-        newAccount.setAccountType(accountType);
+        //newAccount.setAccountNumber(accountNumber.generateUniqueAccountNumber());
+        newAccount.setAccountNumber(accountNumber);
+        newAccount.setAccountType(AccountType.SAVINGS);
         newAccount.setBalance(deposit);
         newAccount.setStatus("ACTIVE");
 
@@ -133,7 +138,7 @@ public class AccountController {
 
         return accountRepository.findById(id)
             .map(account -> {
-                account.setAccountType(accountType);
+                //account.setAccountType(accountType);
                 account.setBalance(balance);
                 Account updatedAccount = accountRepository.save(account);
                 logger.debug("Account updated: {}", updatedAccount);

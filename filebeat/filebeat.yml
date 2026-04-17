@@ -7,16 +7,21 @@
 #             contains:
 #               docker.container.labels.filebeat.enable: "true"
 #           config:
-#             - type: container
+#             - type: filestream
+#               id: bankapi-logs-${data.docker.container.id}
 #               paths:
 #                 - /var/lib/docker/containers/${data.docker.container.id}/*.log
-#               json.keys_under_root: true
-#               json.overwrite_keys: true
-#               json.add_error_key: true
-#               multiline:                         
-#                 pattern: '^\d{4}-\d{2}-\d{2}'
-#                 negate: true
-#                 match: after
+#               parsers:
+#                 # 1. This unwraps the Docker JSON shell natively
+#                 - container:
+#                     stream: all
+#                     format: auto
+#                 # 2. This applies your multiline logic to the raw text inside
+#                 - multiline:
+#                     type: pattern
+#                     pattern: '^\d{4}-\d{2}-\d{2}'
+#                     negate: true
+#                     match: after
 
 # processors:
 #   - add_docker_metadata:
@@ -35,13 +40,23 @@
 
 
 ###### General Filebeat Configuration v7 ######
-filebeat.inputs:
-  - type: docker
-    containers.ids:
-      - "*"
-    processors:
-      - add_docker_metadata: ~
+# filebeat.inputs:
+#   - type: docker
+#     containers.ids:
+#       - "*"
+#     processors:
+#       - add_docker_metadata: ~
 
+
+# output.logstash:
+#   hosts: ["graylog-host:5044"]
+
+filebeat.inputs:
+- type: filestream
+  id: bankapi-logs
+  enabled: true
+  paths:
+    - /logs/*.log
 
 output.logstash:
-  hosts: ["graylog-host:5044"]
+  hosts: ["graylog:5044"]
