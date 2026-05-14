@@ -15,15 +15,20 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import com.bankapi.model.Account;
 import com.bankapi.model.AccountType;
 import com.bankapi.repository.AccountRepository;
-import com.bankapi.service.AccountNumber;
+
+
+import java.util.Random;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+
+@CrossOrigin("*")
 @RestController
 @RequestMapping("")
 @Tag(name = "Account", description = "Account management api")
@@ -31,8 +36,6 @@ public class AccountController {
 
     @Autowired
     private AccountRepository accountRepository;
-
-    private AccountNumber accountNumber;
 
 
     private static final Logger logger = LoggerFactory.getLogger(AccountController.class);
@@ -96,14 +99,20 @@ public class AccountController {
 
     @PostMapping("/create-account")
     @Operation(summary = "Create a new account", description = "Create a new account with the provided user name, account type, and initial deposit")
-    public ResponseEntity<Account> createAccount(@RequestParam String userName, @RequestParam String accountNumber, @RequestParam BigDecimal deposit) {
+    public ResponseEntity<Account> createAccount(@RequestParam String userName, @RequestParam BigDecimal deposit) {
         logger.info("Creating account for user: {}", userName);
 
+
+        Random random = new Random();
+        int number;
         
+        do{
+            number = 100000000 + random.nextInt(900000000);
+        }while(accountRepository.existsByAccountNumber(String.valueOf(number)));
+
         Account newAccount = new Account();        
         newAccount.setUserName(userName);
-        //newAccount.setAccountNumber(accountNumber.generateUniqueAccountNumber());
-        newAccount.setAccountNumber(accountNumber);
+        newAccount.setAccountNumber(String.valueOf(number));
         newAccount.setAccountType(AccountType.SAVINGS);
         newAccount.setBalance(deposit);
         newAccount.setStatus("ACTIVE");
@@ -133,13 +142,13 @@ public class AccountController {
 
     @PutMapping("/update-account/{id}")
     @Operation(summary = "Update account details", description = "Update the account type and balance for a specific account")
-    public ResponseEntity<Account> updateAccount(@PathVariable Long id, @RequestParam String accountType, @RequestParam BigDecimal balance) {
+    public ResponseEntity<Account> updateAccount(@PathVariable Long id, @RequestParam BigDecimal balance) {
         logger.info("Updating account with ID: {}", id);
 
         return accountRepository.findById(id)
             .map(account -> {
-                //account.setAccountType(accountType);
-                account.setBalance(balance);
+                //account.setAccountType(accountType.toUpperCase());
+                account.setBalance(account.getBalance().add(balance));
                 Account updatedAccount = accountRepository.save(account);
                 logger.debug("Account updated: {}", updatedAccount);
                 return ResponseEntity.ok(updatedAccount);
