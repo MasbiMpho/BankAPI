@@ -2,9 +2,7 @@ import React, {useEffect, useState} from "react";
 import "../Theme/globalStyles";
 import "../Theme/styles";
 import "../Theme/theme";
-import Icon from "../Components/Icon";
-import Spinner from "../Components/Spinner";
-import QuickStats from "./Quickstats";
+
 import { API } from "../Api/connection";
 
 
