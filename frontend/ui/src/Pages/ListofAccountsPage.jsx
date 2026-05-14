@@ -41,7 +41,7 @@ export default function ListofAccountsPage() {
         <ul>
             {users.map((user) => (
                 <li key={user.id}>
-                    Name: {user.userName} | Account Number: {user.accountNumber} | Deposit: R{user.balance.toFixed(2)} | Account Type: {user.accountType} | Status: {user.status}
+                   ID: {user.userId} | Name: {user.userName} | Account Number: {user.accountNumber} | Deposit: R{user.balance.toFixed(2)} | Account Type: {user.accountType} | Status: {user.status}
                 </li>
             ))}
         </ul>
